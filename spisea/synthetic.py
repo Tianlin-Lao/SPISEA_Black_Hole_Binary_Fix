@@ -92,8 +92,7 @@ class Cluster(object):
         self.ifmr = ifmr
         self.cluster_mass = cluster_mass
         self.seed = seed
-        
-        self.error_count = 0
+
         
         return
     
@@ -553,37 +552,32 @@ class ResolvedCluster(Cluster):
                     w_c = 0.0  # Undefined, set to 0
             return a_c, e_norm, orb.i, orb.o, w_c
         
-        error_count = 0
         
-        def retry(star_systems, row):
-            M = np.random.random()*2*np.pi
-            for i in range(10):
-                try:
-                    a, e, i, o, w = orbit_change(star_systems, row, M) # Last argument is a random mean anomaly
-                    return a, e, i, o, w
-                except Exception as err:
-                    M += 1
-                    M = M%(2*np.pi)
-                    self.error_count += 1
-                    
-            return np.nan, np.nan, np.nan, np.nan, np.nan
-                    
-
-
 
 
         for temp_index in reversed(range(len(companions))):
             row = companions[temp_index]
-            print(temp_index)
+            # print(temp_index)
+            
+            flag_delete = False
+            
+            try:
+                M = np.random.random()*2*np.pi
+                a, e, i, o, w = orbit_change(star_systems, row, M) # Last argument is a random mean anomaly
+            except Exception as err:
 
-            a, e, i, o, w = retry(star_systems, row)
-            if np.isnan(a):
-                print("How is that possible")
-                del companions[temp_index]
+                # This Exception is EccAnomalyError: eccen_anomaly: Could not converge for e = ?
+                # For the absolute majorities of cases, this for loop passes on the first run
+                # repeated testing showed that in about 0.04% of the cases consistently this Exception occurrs
+                # So the solution here is just drop these data
+               
+                flag_delete = True
                 
+            if flag_delete:
+                continue
             
             
-            if (a < 0) or (a > 250000) or (e >= 1) or (e < 0): #should delete the row in companions if this is satisfyed
+            if np.isnan(a) or (a < 0) or (a > 250000) or (e >= 1) or (e < 0): #should delete the row in companions if this is satisfyed
                 temp_row = star_systems[0] # Placeholder            
                 # Add the companion star as an independent star in star_system
                 #Added in the end so do not affect the system_idx of companion star list
@@ -632,17 +626,15 @@ class ResolvedCluster(Cluster):
                         else:
                             star_systems[idx][filt] = np.nan
                 del companions[temp_index]
+                continue
             
-            row['log_a'] = np.log10(a)
-            row['e']=e
-            row['i']=i
-            row['Omega']=o
-            row['omega']=w
+            companions[temp_index]['log_a'] = np.log10(a)
+            companions[temp_index]['e'] = e
+            companions[temp_index]['i'] = i
+            companions[temp_index]['Omega'] = o
+            companions[temp_index]['omega'] = w
             
             
-        print('error count' + str(self.error_count))
-        print('error rate' + str(self.error_count/len(companions)))
-                
         return star_systems, companions
 
 class ResolvedClusterDiffRedden(ResolvedCluster):
