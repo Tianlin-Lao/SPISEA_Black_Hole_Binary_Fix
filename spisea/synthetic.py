@@ -552,8 +552,13 @@ class ResolvedCluster(Cluster):
                     w_c = 0.0  # Undefined, set to 0
             return a_c, e_norm, orb.i, orb.o, w_c
         
-        
-
+        cnt = 0
+        file_data_with_EccAnomalyError = "data_with_EccAnomalyError.txt"
+        EccAnomalyError_max_size = 10*1024
+        if os.path.exists(file_data_with_EccAnomalyError) and os.path.getsize(file_data_with_EccAnomalyError) > EccAnomalyError_max_size:
+            open(file_data_with_EccAnomalyError, "w").close()
+        with open(file_data_with_EccAnomalyError, "a") as f:
+            f.write('\n\n\n')
 
         for temp_index in reversed(range(len(companions))):
             row = companions[temp_index]
@@ -570,10 +575,16 @@ class ResolvedCluster(Cluster):
                 # For the absolute majorities of cases, this for loop passes on the first run
                 # repeated testing showed that in about 0.04% of the cases consistently this Exception occurrs
                 # So the solution here is just drop these data
+                # And these data are saved to "data_with_EccAnomalyError.txt"
                
                 flag_delete = True
                 
             if flag_delete:
+                cnt += 1
+                print(row)
+                row_dict = dict(zip(companions.colnames, row))
+                with open(file_data_with_EccAnomalyError, "a") as f:
+                    f.write(str(row_dict)+'\n')
                 continue
             
             
@@ -633,7 +644,9 @@ class ResolvedCluster(Cluster):
             companions[temp_index]['i'] = i
             companions[temp_index]['Omega'] = o
             companions[temp_index]['omega'] = w
-            
+        
+        print(cnt)
+        print(cnt/len(star_systems))
             
         return star_systems, companions
 
